@@ -58,11 +58,15 @@ COMPONENTS = (
 
 #: Components whose code has landed. A switch for any other one is refused
 #: rather than accepted and ignored, which would read as "it made no difference".
-BUILT: frozenset = frozenset({"categorical_value"})
+BUILT: frozenset = frozenset({"categorical_value", "adv_ema"})
 
 #: Components Disco103 supplies itself: its targets already include a
 #: categorical value, a policy target and a policy-prediction output.
 DISCO103_REPLACES = ("categorical_value", "target_policy", "policy_prediction")
+
+#: Components whose state lives on one Learner. With several Learners each would
+#: keep its own copy, fitted to its own shard of the batch.
+PER_LEARNER_STATE = ("target_policy", "adv_ema", "disco103")
 
 #: Settings that add or resize a tensor; changing one on a resume fails as structural.
 STRUCTURAL_KEYS = ("categorical_value", "value_bins", "policy_prediction", "disco103")
@@ -112,8 +116,9 @@ def validate(settings: Dict[str, Any], cfg) -> None:
         overlap = [n for n in DISCO103_REPLACES if settings[n]]
         if overlap:
             _fail(f"disco103 supplies {overlap} itself; turn them off.")
-    if (settings["disco103"] or settings["target_policy"]) and cfg.num_learners > 1:
-        _fail("disco103 and target_policy keep per-Learner state and need num_learners <= 1.")
+    per_learner = [n for n in PER_LEARNER_STATE if settings[n]]
+    if per_learner and cfg.num_learners > 1:
+        _fail(f"{per_learner} keep per-Learner state and need num_learners <= 1.")
 
     if settings["value_bins"] < 3 or settings["value_bins"] % 2 == 0:
         _fail(f"value_bins must be odd and at least 3, got {settings['value_bins']!r}.")

@@ -6,13 +6,14 @@ Order matters only between components that override the same method; each
 calls `super()`, so all of them run.
 """
 
+from cda_discorl.adv_ema import AdvEmaLearner
 from cda_discorl.categorical_value import CategoricalValueLearner, CategoricalValueModule
 
 #: Components that need the module mixin on the modules they apply to.
 MODULE_COMPONENTS = ("categorical_value",)
 
 
-class DiscoLearnerMixin(CategoricalValueLearner):
+class DiscoLearnerMixin(CategoricalValueLearner, AdvEmaLearner):
     pass
 
 
