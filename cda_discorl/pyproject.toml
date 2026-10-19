@@ -14,8 +14,9 @@ license-files = ["../LICENSE"]
 dependencies = ["gym_continuousDoubleAuction>=2.0,<3"]
 
 [project.optional-dependencies]
-# The frozen Disco103 rule; the upstream disco_rl package sits beside this one.
-disco103 = ["disco_rl", "jax", "dm-haiku", "rlax", "distrax", "optax"]
+# The frozen Disco103 rule: the upstream disco_rl package beside this one, which
+# brings JAX, Haiku, rlax and the weights. Not on PyPI, so installed from git.
+disco103 = ["disco_rl @ git+https://github.com/ChuaCheowHuan/disco_rl"]
 test = ["pytest"]
 
 [project.entry-points."gym_cda.extensions"]

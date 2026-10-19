@@ -48,4 +48,8 @@ repository = "https://github.com/google-deepmind/disco_rl"
 
 [tool.setuptools.packages.find]
 where = ["."]  # list of folders that contain the packages (["."] by default)
-include = ["*"]  # package names should match these glob patterns (["*"] by default)
+include = ["disco_rl*"]  # only the upstream package; cda_discorl/ is installed on its own
+
+[tool.setuptools.package-data]
+# The Disco103 weights, so an installed copy has them without a download.
+"disco_rl.update_rules" = ["weights/*.npz"]

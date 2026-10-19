@@ -3,6 +3,9 @@ name: cda_discorl
 # Tests the cda_discorl package (the DiscoRL extension for
 # gym-continuousDoubleAuction) against an installed gym-CDA. The upstream
 # disco_rl package is not touched or tested here.
+#
+# Lives in cda_discorl/ci/ until it is copied to .github/workflows/: the
+# session that wrote it could not push workflow files.
 
 on:
   push:
