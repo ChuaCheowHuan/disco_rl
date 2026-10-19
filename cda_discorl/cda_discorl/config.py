@@ -58,7 +58,7 @@ COMPONENTS = (
 
 #: Components whose code has landed. A switch for any other one is refused
 #: rather than accepted and ignored, which would read as "it made no difference".
-BUILT: frozenset = frozenset()
+BUILT: frozenset = frozenset({"categorical_value"})
 
 #: Components Disco103 supplies itself: its targets already include a
 #: categorical value, a policy target and a policy-prediction output.
