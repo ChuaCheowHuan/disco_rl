@@ -35,7 +35,7 @@ the rules between them.
 | Component | Switch | What it does | Status |
 |---|---|---|---|
 | Categorical value | `categorical_value` | Two-hot critic over `value_bins` with an h-transform | Built |
-| Target policy | `target_policy` | KL from the policy to an EMA copy of itself | Not built yet |
+| Target policy | `target_policy` | KL from the policy to an EMA copy of itself | Built |
 | Policy prediction | `policy_prediction` | Auxiliary head predicting the next step's policy | Not built yet |
 | Advantage EMA | `adv_ema` | Normalises advantages by a lifetime EMA of their scale | Built |
 | Env variety | `env_variety` | Randomises non-structural env settings per episode | Not built yet |
@@ -66,6 +66,16 @@ logged beside the new `discorl_categorical_vf_loss`.
 The paper's support (601 bins over +/-300) has bins one h-unit apart. This market's per-step rewards
 are around 1e-3, so its returns sit inside the two middle bins. Set `value_max_abs` to the size of
 this run's returns in h-space; for a return of `R` that is about `R / 2` when `R` is small.
+
+## Target policy
+
+DiscoRL's agent keeps target weights, an exponential moving average of its own. With
+`target_policy` on, each selected module gets such a copy on the Learner, and the loss gains
+`target_kl_cost * KL(pi_target || pi)`. After every optimiser step the copy moves
+`1 - target_coeff` of the way to the online weights. PPO's clipping limits how far one update
+moves the policy; this limits how far a run of updates drifts from where the policy has recently
+been, which matters when the league keeps changing the opponents. The KL is logged as
+`discorl_target_kl`, and the copy is saved with the Learner's state.
 
 ## Advantage EMA
 
