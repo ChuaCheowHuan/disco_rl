@@ -8,20 +8,26 @@ calls `super()`, so all of them run.
 
 from cda_discorl.adv_ema import AdvEmaLearner
 from cda_discorl.categorical_value import CategoricalValueLearner, CategoricalValueModule
+from cda_discorl.disco103.heads import Disco103Module
+from cda_discorl.disco103.learner import Disco103Learner
 from cda_discorl.policy_prediction import PolicyPredictionLearner, PolicyPredictionModule
 from cda_discorl.target_policy import TargetPolicyLearner
 
 #: Components that need the module mixin on the modules they apply to.
-MODULE_COMPONENTS = ("categorical_value", "policy_prediction")
+MODULE_COMPONENTS = ("categorical_value", "policy_prediction", "disco103")
 
 
 class DiscoLearnerMixin(
-    CategoricalValueLearner, TargetPolicyLearner, PolicyPredictionLearner, AdvEmaLearner
+    Disco103Learner,
+    CategoricalValueLearner,
+    TargetPolicyLearner,
+    PolicyPredictionLearner,
+    AdvEmaLearner,
 ):
     pass
 
 
-class DiscoModuleMixin(CategoricalValueModule, PolicyPredictionModule):
+class DiscoModuleMixin(CategoricalValueModule, PolicyPredictionModule, Disco103Module):
     pass
 
 
