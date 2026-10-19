@@ -38,7 +38,7 @@ the rules between them.
 | Target policy | `target_policy` | KL from the policy to an EMA copy of itself | Built |
 | Policy prediction | `policy_prediction` | Auxiliary head predicting the next step's policy | Built |
 | Advantage EMA | `adv_ema` | Normalises advantages by a lifetime EMA of their scale | Built |
-| Env variety | `env_variety` | Randomises non-structural env settings per episode | Not built yet |
+| Env variety | `env_variety` | Redraws some market rules at the start of every episode | Built |
 | Disco103 | `disco103` | The frozen discovered rule in place of PPO's loss | Not built yet |
 
 A switch for a component that is not built yet is refused, rather than accepted and ignored.
@@ -47,8 +47,8 @@ league run compares the two.
 
 Rules: `disco103` supplies its own categorical value, policy target and policy prediction, so it
 refuses those three switches. `target_policy`, `adv_ema` and `disco103` keep per-Learner state
-and refuse `num_learners > 1`. `env_variety_keys` may not name a setting that changes the observation or
-action space.
+and refuse `num_learners > 1`. `env_variety_keys` may only name the four settings the env can change
+between episodes.
 
 A resume must enable the same extension with the same settings as the checkpoint; gym-CDA
 refuses anything else, and refuses to restore a checkpoint that used `discorl` where this package
@@ -90,6 +90,25 @@ out, weighted by `policy_prediction_cost` and logged as `discorl_policy_predicti
 It adds the next observation to the Learner's train batch when the run does not already carry it
 (JEPA runs do). It needs a stateless encoder, so it refuses `encoder_type: lstm`. The head lives
 only on the Learner's copy of a module; env runners do not build it.
+
+## Env variety
+
+DiscoRL's rule generalised because it was discovered across many environments; a league here
+trains on one fixed market. With `env_variety` on, every episode draws each setting in
+`env_variety_keys` from its list in `env_variety_choices`:
+
+| Key | Default choices | When the env reads it |
+|---|---|---|
+| `matching_rule` | `fifo`, `pro_rata` | When `reset` builds the episode's book |
+| `step_clearing` | `sequential`, `batch` | Every step |
+| `maker_fee_bps` | `0`, `1` | Each trader's account, which `reset` keeps |
+| `taker_fee_bps` | `0`, `2` | The same |
+
+Only these four are supported: none changes the observation or action space, and none needs the
+env rebuilt. Every fee pair the lists could produce is checked against the env's own fee rules
+when the config is built. A seeded `reset` repeats its draw. The settings in force are on
+`env.discorl_env_settings`. The draw applies to the whole market, so to every agent, whichever
+modules `modules` selects.
 
 ## Advantage EMA
 
