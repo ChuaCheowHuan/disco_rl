@@ -1,0 +1,148 @@
+"""The package as gym-CDA sees it: installed, discovered, validated, and inert.
+
+These run against an installed gym-CDA, through its public extension point, so
+a change there that breaks this package fails here.
+"""
+
+import pytest
+
+from gym_continuousDoubleAuction.train import extensions
+from gym_continuousDoubleAuction.train.model.moe_learner import CDAPPOTorchLearner
+from gym_continuousDoubleAuction.train.train import TrainConfig, _learner_class
+
+import cda_discorl
+from cda_discorl import config
+
+BASE_CFG = dict(
+    num_agents=4,
+    num_trained_agents=2,
+    max_step=64,
+    num_episodes_per_iter=2,
+    num_epochs=1,
+    minibatch_size=64,
+    num_env_runners=0,
+    num_learners=0,
+    num_gpus_per_learner=0,
+    episode_data_dir=None,
+    log_level="ERROR",
+)
+
+
+def _cfg(settings=None, **kwargs):
+    return TrainConfig(
+        **{**BASE_CFG, **kwargs},
+        extensions_enabled=["discorl"],
+        extension_settings={"discorl": settings or {}},
+    )
+
+
+class TestDiscovery:
+    def test_the_entry_point_resolves_to_this_package(self):
+        extensions.discover.cache_clear()
+        assert extensions.discover()["discorl"] is cda_discorl.EXTENSION
+
+    def test_the_recorded_version_is_the_package_version(self):
+        from importlib.metadata import version
+
+        assert cda_discorl.EXTENSION.version == version("cda-discorl")
+
+
+class TestEnabledWithEverythingOffChangesNothing:
+    def test_every_component_defaults_off(self):
+        assert not any(config.DEFAULTS[name] for name in config.COMPONENTS)
+
+    def test_the_learner_class_is_unchanged(self):
+        assert _learner_class(_cfg()) is CDAPPOTorchLearner
+
+    def test_the_env_is_unchanged(self):
+        env = object()
+        assert extensions.wrap_env(env, ["discorl"], {}) is env
+
+    def test_the_settings_reach_the_learner_config(self):
+        group = {extensions.EXTENSIONS_CONFIG_KEY: extensions.learner_config(_cfg())}
+        assert extensions.settings_for(group, "discorl") == config.DEFAULTS
+        assert extensions.versions(group) == {"discorl": cda_discorl.__version__}
+
+
+class TestValidation:
+    def test_an_unknown_key_is_refused_by_gym_cda(self):
+        with pytest.raises(ValueError, match="unknown keys"):
+            _cfg({"target_kl": 0.1})
+
+    @pytest.mark.parametrize("name", sorted(set(config.COMPONENTS) - config.BUILT))
+    def test_a_component_not_built_yet_is_refused(self, name):
+        with pytest.raises(ValueError, match="not built yet"):
+            _cfg({name: True})
+
+    def test_modules_must_be_trainable(self):
+        with pytest.raises(ValueError, match="not trainable"):
+            _cfg({"modules": ["policy_3"]})
+
+    def test_modules_may_not_be_empty(self):
+        with pytest.raises(ValueError, match="non-empty"):
+            _cfg({"modules": []})
+
+    def test_both_trainable_modules_may_be_selected(self):
+        _cfg({"modules": ["policy_0", "policy_1"]})
+
+    def test_a_switch_must_be_a_bool(self):
+        with pytest.raises(ValueError, match="true or false"):
+            _cfg({"adv_ema": 1})
+
+    @pytest.mark.parametrize(
+        "key, value",
+        [
+            ("value_bins", 600),
+            ("value_bins", 1),
+            ("value_max_abs", 0.0),
+            ("target_coeff", 1.0),
+            ("target_kl_cost", -0.1),
+            ("policy_prediction_cost", -1.0),
+            ("adv_ema_decay", -0.1),
+            ("disco103_reward_scale", 0.0),
+            ("disco103_size_head", "disco"),
+        ],
+    )
+    def test_out_of_range_values_are_refused(self, key, value):
+        with pytest.raises(ValueError, match=key):
+            _cfg({key: value})
+
+    def test_env_variety_keys_must_be_env_settings(self):
+        with pytest.raises(ValueError, match="does not have"):
+            _cfg({"env_variety_keys": ["no_such_key"]})
+
+    @pytest.mark.parametrize("key", ["n_hist", "book_mode", "num_of_agents"])
+    def test_env_variety_may_not_vary_a_structural_key(self, key):
+        with pytest.raises(ValueError, match="change the spaces"):
+            _cfg({"env_variety_keys": [key]})
+
+
+class TestCombinationRules:
+    """Checked directly, since the switches they combine are not built yet."""
+
+    @staticmethod
+    def _check(monkeypatch, settings, **cfg_kwargs):
+        monkeypatch.setattr(config, "BUILT", frozenset(config.COMPONENTS))
+        cfg = TrainConfig(**{**BASE_CFG, **cfg_kwargs})
+        config.validate({**config.DEFAULTS, **settings}, cfg)
+
+    @pytest.mark.parametrize("name", config.DISCO103_REPLACES)
+    def test_disco103_refuses_what_it_supplies_itself(self, monkeypatch, name):
+        with pytest.raises(ValueError, match="supplies"):
+            self._check(monkeypatch, {"disco103": True, name: True})
+
+    @pytest.mark.parametrize("name", ["disco103", "target_policy"])
+    def test_per_learner_state_refuses_several_learners(self, monkeypatch, name):
+        with pytest.raises(ValueError, match="num_learners"):
+            self._check(monkeypatch, {name: True}, num_learners=2)
+
+    def test_disco103_with_adv_ema_and_env_variety_is_allowed(self, monkeypatch):
+        self._check(monkeypatch, {"disco103": True, "adv_ema": True, "env_variety": True})
+
+
+class TestResume:
+    def test_structural_settings_are_registered(self):
+        group = {extensions.EXTENSIONS_CONFIG_KEY: extensions.learner_config(_cfg())}
+        assert set(extensions.structural_keys(group)) == {
+            f"ext.discorl.{k}" for k in config.STRUCTURAL_KEYS
+        }
