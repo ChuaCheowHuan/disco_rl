@@ -17,8 +17,9 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from gym_continuousDoubleAuction.train.checkpoint import STRUCTURAL_CONFIG_KEYS
 from gym_continuousDoubleAuction.train.policy.policy_handler import POLICY_PREFIX
+
+from cda_discorl import env_variety
 
 DEFAULTS: Dict[str, Any] = {
     # Trainable modules the components apply to; the others stay plain PPO.
@@ -37,9 +38,15 @@ DEFAULTS: Dict[str, Any] = {
     # Advantages normalised by a lifetime EMA of their scale, not per batch.
     "adv_ema": False,
     "adv_ema_decay": 0.99,
-    # Per-episode randomisation of these env settings.
+    # Per-episode draw of these env settings, each from its list of choices.
     "env_variety": False,
     "env_variety_keys": ["matching_rule", "step_clearing", "maker_fee_bps", "taker_fee_bps"],
+    "env_variety_choices": {
+        "matching_rule": ["fifo", "pro_rata"],
+        "step_clearing": ["sequential", "batch"],
+        "maker_fee_bps": [0, 1],
+        "taker_fee_bps": [0, 2],
+    },
     # The frozen Disco103 update rule in place of PPO's loss.
     "disco103": False,
     "disco103_reward_scale": 100.0,
@@ -58,7 +65,9 @@ COMPONENTS = (
 
 #: Components whose code has landed. A switch for any other one is refused
 #: rather than accepted and ignored, which would read as "it made no difference".
-BUILT: frozenset = frozenset({"categorical_value", "adv_ema", "target_policy", "policy_prediction"})
+BUILT: frozenset = frozenset(
+    {"categorical_value", "adv_ema", "target_policy", "policy_prediction", "env_variety"}
+)
 
 #: Components Disco103 supplies itself: its targets already include a
 #: categorical value, a policy target and a policy-prediction output.
@@ -138,8 +147,7 @@ def validate(settings: Dict[str, Any], cfg) -> None:
     missing = sorted(set(env_keys) - set(cfg.env_config))
     if missing:
         _fail(f"env_variety_keys names {missing}, which the env config does not have.")
-    structural = sorted(
-        k for k in env_keys if f"env_config.{k}" in STRUCTURAL_CONFIG_KEYS or k == "num_of_agents"
-    )
-    if structural:
-        _fail(f"env_variety_keys may not vary {structural}: they change the spaces.")
+    try:
+        env_variety.validate_choices(env_keys, settings["env_variety_choices"])
+    except ValueError as err:
+        _fail(str(err))

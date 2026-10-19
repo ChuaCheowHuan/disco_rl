@@ -11,7 +11,7 @@ Each component lands in its own release. Until one has, its switch is refused
 
 from gym_continuousDoubleAuction.train.extensions import Extension
 
-from cda_discorl import components, config
+from cda_discorl import components, config, env_variety
 
 __version__ = "0.1.0"
 
@@ -23,5 +23,6 @@ EXTENSION = Extension(
     learner_mixin=components.DiscoLearnerMixin,
     module_mixin=components.DiscoModuleMixin,
     module_ids=components.module_ids,
+    env_wrapper=env_variety.wrap,
     structural_keys=config.STRUCTURAL_KEYS,
 )
