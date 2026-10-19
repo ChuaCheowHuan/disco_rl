@@ -8,6 +8,7 @@ without the package is refused by name.
 import shutil
 import tempfile
 
+import numpy as np
 import ray
 
 from gym_continuousDoubleAuction.train import extensions
@@ -19,6 +20,7 @@ from gym_continuousDoubleAuction.train.model.moe_learner import (
 from gym_continuousDoubleAuction.train.train import TrainConfig, build_config
 
 import cda_discorl
+from cda_discorl import config
 
 TEST_CFG = dict(
     num_agents=4,
@@ -70,3 +72,41 @@ class TestEnabledButInert:
         path = save_checkpoint(self.algo, self.cfg, 1)
         recorded = _read_league_state(path)[extensions.EXTENSIONS_STATE_KEY]
         assert recorded == {"discorl": cda_discorl.__version__}
+
+
+class TestEveryBuiltComponentTogether:
+    """All built components on policy_0, with a remote env runner.
+
+    A remote runner builds inference-only modules and receives weights from the
+    Learner, so this is where an extra head missing from the inference-only
+    list would fail.
+    """
+
+    @classmethod
+    def setup_class(cls):
+        extensions.discover.cache_clear()
+        ray.init(ignore_reinit_error=True, include_dashboard=False, log_to_driver=False, num_cpus=3)
+        cls.log_dir = tempfile.mkdtemp()
+        # Disco103 replaces three of the others, so it has its own run.
+        settings = {n: True for n in config.BUILT if n in config.COMPONENTS and n != "disco103"}
+        settings.update(value_bins=51, value_max_abs=5.0)
+        cfg = TrainConfig(
+            **{**TEST_CFG, "num_env_runners": 1},
+            extension_settings={"discorl": settings},
+            log_base_dir=cls.log_dir,
+        )
+        ppo_config, _cb = build_config(cfg)
+        cls.algo = ppo_config.build_algo()
+        cls.results = [cls.algo.train() for _ in range(2)]
+
+    @classmethod
+    def teardown_class(cls):
+        cls.algo.stop()
+        ray.shutdown()
+        shutil.rmtree(cls.log_dir, ignore_errors=True)
+
+    def test_two_iterations_train_with_finite_losses(self):
+        for result in self.results:
+            metrics = result["learners"]["policy_0"]
+            assert np.isfinite(float(metrics["total_loss"]))
+            assert any(k.startswith("discorl") for k in metrics)
