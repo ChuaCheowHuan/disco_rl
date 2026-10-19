@@ -136,7 +136,7 @@ class TestCombinationRules:
         with pytest.raises(ValueError, match="supplies"):
             self._check(monkeypatch, {"disco103": True, name: True})
 
-    @pytest.mark.parametrize("name", ["disco103", "target_policy"])
+    @pytest.mark.parametrize("name", config.PER_LEARNER_STATE)
     def test_per_learner_state_refuses_several_learners(self, monkeypatch, name):
         with pytest.raises(ValueError, match="num_learners"):
             self._check(monkeypatch, {name: True}, num_learners=2)
