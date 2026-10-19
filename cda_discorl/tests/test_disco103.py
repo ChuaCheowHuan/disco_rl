@@ -121,6 +121,10 @@ class TestInARealRun:
                 assert np.isfinite(float(metrics[f"discorl_d103_{name}_{term}_loss"])), (name, term)
         assert np.isfinite(float(metrics["total_loss"]))
 
+    def test_the_critic_reports_its_explained_variance(self):
+        # train.compare reads it; without it a Disco103 row has no critic column.
+        assert np.isfinite(float(self.result["learners"]["policy_0"]["vf_explained_var"]))
+
     def test_the_continuous_component_keeps_ppo(self):
         assert "discorl_d103_size_policy_loss" in self.result["learners"]["policy_0"]
 
