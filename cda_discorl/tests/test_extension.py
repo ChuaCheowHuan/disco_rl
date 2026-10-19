@@ -4,6 +4,8 @@ These run against an installed gym-CDA, through its public extension point, so
 a change there that breaks this package fails here.
 """
 
+from types import SimpleNamespace
+
 import pytest
 
 from gym_continuousDoubleAuction.train import extensions
@@ -60,8 +62,10 @@ class TestEnabledWithEverythingOffChangesNothing:
         assert cda_discorl.EXTENSION.module_ids(config.DEFAULTS, ["policy_0", "policy_1"]) == []
 
     def test_the_env_is_unchanged(self):
-        env = object()
+        env = SimpleNamespace(reset=lambda **kw: None)
+        reset = env.reset
         assert extensions.wrap_env(env, ["discorl"], {}) is env
+        assert env.reset is reset
 
     def test_the_settings_reach_the_learner_config(self):
         group = {extensions.EXTENSIONS_CONFIG_KEY: extensions.learner_config(_cfg())}
@@ -118,7 +122,7 @@ class TestValidation:
 
     @pytest.mark.parametrize("key", ["n_hist", "book_mode", "num_of_agents"])
     def test_env_variety_may_not_vary_a_structural_key(self, key):
-        with pytest.raises(ValueError, match="change the spaces"):
+        with pytest.raises(ValueError, match="may only name"):
             _cfg({"env_variety_keys": [key]})
 
 
