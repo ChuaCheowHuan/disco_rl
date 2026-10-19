@@ -34,7 +34,7 @@ the rules between them.
 
 | Component | Switch | What it does | Status |
 |---|---|---|---|
-| Categorical value | `categorical_value` | Two-hot critic over `value_bins` with an h-transform | Not built yet |
+| Categorical value | `categorical_value` | Two-hot critic over `value_bins` with an h-transform | Built |
 | Target policy | `target_policy` | KL from the policy to an EMA copy of itself | Not built yet |
 | Policy prediction | `policy_prediction` | Auxiliary head predicting the next step's policy | Not built yet |
 | Advantage EMA | `adv_ema` | Normalises advantages by a lifetime EMA of their scale | Not built yet |
@@ -53,6 +53,19 @@ action space.
 A resume must enable the same extension with the same settings as the checkpoint; gym-CDA
 refuses anything else, and refuses to restore a checkpoint that used `discorl` where this package
 is not installed.
+
+## Categorical value
+
+The value head predicts a distribution over `value_bins` points spread evenly over
+`[-value_max_abs, value_max_abs]` in h-space, `h(x) = sign(x)(sqrt(|x| + 1) - 1) + 0.001x`, trained
+with a cross-entropy against a two-hot encoding of the value target. It replaces PPO's squared
+error, weighted by the same `vf_loss_coeff`. The scalar value RLlib uses for GAE is the
+expectation, mapped back out of h-space, so nothing downstream changes. PPO's `vf_loss` is still
+logged beside the new `discorl_categorical_vf_loss`.
+
+The paper's support (601 bins over +/-300) has bins one h-unit apart. This market's per-step rewards
+are around 1e-3, so its returns sit inside the two middle bins. Set `value_max_abs` to the size of
+this run's returns in h-space; for a return of `R` that is about `R / 2` when `R` is small.
 
 ## Tests
 
