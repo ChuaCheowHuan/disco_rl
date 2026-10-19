@@ -78,10 +78,21 @@ class TestValidation:
         with pytest.raises(ValueError, match="unknown keys"):
             _cfg({"target_kl": 0.1})
 
-    @pytest.mark.parametrize("name", sorted(set(config.COMPONENTS) - config.BUILT))
-    def test_a_component_not_built_yet_is_refused(self, name):
+    @pytest.mark.parametrize("name", config.COMPONENTS)
+    def test_a_component_not_built_yet_is_refused(self, monkeypatch, name):
+        monkeypatch.setattr(config, "BUILT", frozenset(config.COMPONENTS) - {name})
         with pytest.raises(ValueError, match="not built yet"):
             _cfg({name: True})
+
+    def test_disco103_without_its_extra_is_refused(self, monkeypatch):
+        import importlib.util
+
+        real = importlib.util.find_spec
+        monkeypatch.setattr(
+            importlib.util, "find_spec", lambda n, *a: None if n == "disco_rl" else real(n, *a)
+        )
+        with pytest.raises(ValueError, match=r"\[disco103\] extra"):
+            _cfg({"disco103": True})
 
     def test_modules_must_be_trainable(self):
         with pytest.raises(ValueError, match="not trainable"):
