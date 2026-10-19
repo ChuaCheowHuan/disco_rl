@@ -37,7 +37,7 @@ the rules between them.
 | Categorical value | `categorical_value` | Two-hot critic over `value_bins` with an h-transform | Built |
 | Target policy | `target_policy` | KL from the policy to an EMA copy of itself | Not built yet |
 | Policy prediction | `policy_prediction` | Auxiliary head predicting the next step's policy | Not built yet |
-| Advantage EMA | `adv_ema` | Normalises advantages by a lifetime EMA of their scale | Not built yet |
+| Advantage EMA | `adv_ema` | Normalises advantages by a lifetime EMA of their scale | Built |
 | Env variety | `env_variety` | Randomises non-structural env settings per episode | Not built yet |
 | Disco103 | `disco103` | The frozen discovered rule in place of PPO's loss | Not built yet |
 
@@ -46,8 +46,8 @@ A switch for a component that is not built yet is refused, rather than accepted 
 league run compares the two.
 
 Rules: `disco103` supplies its own categorical value, policy target and policy prediction, so it
-refuses those three switches. `disco103` and `target_policy` keep per-Learner state and refuse
-`num_learners > 1`. `env_variety_keys` may not name a setting that changes the observation or
+refuses those three switches. `target_policy`, `adv_ema` and `disco103` keep per-Learner state
+and refuse `num_learners > 1`. `env_variety_keys` may not name a setting that changes the observation or
 action space.
 
 A resume must enable the same extension with the same settings as the checkpoint; gym-CDA
@@ -66,6 +66,18 @@ logged beside the new `discorl_categorical_vf_loss`.
 The paper's support (601 bins over +/-300) has bins one h-unit apart. This market's per-step rewards
 are around 1e-3, so its returns sit inside the two middle bins. Set `value_max_abs` to the size of
 this run's returns in h-space; for a return of `R` that is about `R / 2` when `R` is small.
+
+## Advantage EMA
+
+RLlib standardises each batch's advantages by that batch's own mean and standard deviation.
+With `adv_ema` on, the selected modules use DiscoRL's normaliser instead: an exponential moving
+average (decay `adv_ema_decay`) of the advantage's first and second moments over the whole run,
+debiased as Adam debiases its moments. The first batch is standardised exactly as before; later
+batches keep their scale relative to the past rather than being stretched to unit variance.
+
+It runs right after RLlib's GAE step on the Learner. GAE does not keep the raw advantages, so
+they are recomputed as `value_targets - V(s)` with the same weights. The moments are saved with
+the Learner's state, so a resume continues them.
 
 ## Tests
 
