@@ -44,6 +44,8 @@ jobs:
           python -m pip install --upgrade pip
           pip install torch==2.13.0 --extra-index-url https://download.pytorch.org/whl/cpu
           pip install "gym_continuousDoubleAuction @ git+https://github.com/ChuaCheowHuan/gym-continuousDoubleAuction@${GYM_CDA_REF}"
+          # The upstream package at the repo root, for the Disco103 tests.
+          pip install .
           pip install "./cda_discorl[test]"
 
       - name: Tests, including one real training iteration

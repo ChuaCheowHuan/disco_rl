@@ -24,8 +24,8 @@ pip install "gym_continuousDoubleAuction @ git+https://github.com/ChuaCheowHuan/
 pip install "git+https://github.com/ChuaCheowHuan/disco_rl#subdirectory=cda_discorl"
 ```
 
-Add the `[disco103]` extra for the frozen Disco103 update rule (JAX, Haiku and the upstream
-`disco_rl` package).
+Add the `[disco103]` extra for the frozen Disco103 update rule. It installs the upstream `disco_rl`
+package from this repository, which brings JAX, Haiku, rlax and the published weights.
 
 ## Settings
 
@@ -39,9 +39,10 @@ the rules between them.
 | Policy prediction | `policy_prediction` | Auxiliary head predicting the next step's policy | Built |
 | Advantage EMA | `adv_ema` | Normalises advantages by a lifetime EMA of their scale | Built |
 | Env variety | `env_variety` | Redraws some market rules at the start of every episode | Built |
-| Disco103 | `disco103` | The frozen discovered rule in place of PPO's loss | Not built yet |
+| Disco103 | `disco103` | The frozen discovered rule in place of PPO's loss | Built |
 
-A switch for a component that is not built yet is refused, rather than accepted and ignored.
+A switch for a component that is not built yet is refused, rather than accepted and ignored. All
+six are built in this version.
 `modules` picks which trainable modules get the components; the others stay plain PPO, so one
 league run compares the two.
 
@@ -53,6 +54,41 @@ between episodes.
 A resume must enable the same extension with the same settings as the checkpoint; gym-CDA
 refuses anything else, and refuses to restore a checkpoint that used `discorl` where this package
 is not installed.
+
+## Disco103
+
+With `disco103` on, the selected modules learn by the frozen update rule DeepMind discovered
+(Oh et al., 2025), using the published `disco_103.npz` weights, in place of PPO's loss.
+
+The rule's agent has, per discrete action, a state prediction `y`, an action-conditional
+prediction `z`, a next-step policy prediction `aux_pi` and a categorical action value `q`. Here
+each discrete component of the action (category, price, price offset, order slot) gets its own
+set from the actor embedding, and is its own stream to the meta-network, with its own meta-RNN
+state and moving averages. The loss per component is the rule's own: KL to the meta-network's
+`pi_hat`, `y_hat` and `z_hat`, the next-step policy prediction, and the categorical TD value loss,
+with the published costs (1, 1, 1, 1, 0.2). Each term is logged as
+`discorl_d103_<component>_<term>_loss`.
+
+How it fits RLlib's PPO Learner:
+
+- **Targets once per update batch.** The rule needs whole trajectories, and PPO shuffles timesteps
+  into minibatches. So right after GAE, where the batch still holds whole episodes, the targets
+  are computed for every step and stored in the batch; each minibatch reads its rows. With several
+  epochs they stay fixed across them, as PPO's advantages do. Episodes of different lengths are
+  padded with terminal steps, which also enter the rule's moving averages.
+- **The continuous size keeps PPO** (`disco103_size_head: "ppo"`): its clipped surrogate and
+  entropy bonus, with GAE's advantages from the scalar critic, which keeps PPO's value loss.
+- **Rewards are scaled** by `disco103_reward_scale` (100) before the rule sees them. It was
+  discovered on Atari-scale rewards; this market's are around 1e-3 per step.
+- **Masked actions stay masked.** The meta-network can put weight on an action the env masked
+  out; the policy target is masked the same way before the KL.
+- **The target network** is an EMA copy (coefficient 0.9, the rule's own), updated after every
+  optimiser step. It and the meta-network state are saved with the Learner's state.
+- The meta-network runs in JAX on the CPU, un-jitted (current JAX fails an upstream type check
+  under `jit`), about 0.3 s per component per update at 64 steps.
+
+It needs a stateless encoder, so it refuses `encoder_type: lstm`, and it refuses
+`categorical_value`, `target_policy` and `policy_prediction`, which it supplies itself.
 
 ## Categorical value
 
