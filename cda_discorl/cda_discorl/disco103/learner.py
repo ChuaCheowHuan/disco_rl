@@ -37,10 +37,12 @@ from typing import Dict
 
 import numpy as np
 import torch
+from ray.rllib.algorithms.ppo.ppo import LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY
 from ray.rllib.connectors.connector_v2 import ConnectorV2
 from ray.rllib.connectors.learner import GeneralAdvantageEstimation
 from ray.rllib.core.columns import Columns
 from ray.rllib.evaluation.postprocessing import Postprocessing
+from ray.rllib.utils.torch_utils import explained_variance
 
 from gym_continuousDoubleAuction.train.extensions import settings_for
 from gym_continuousDoubleAuction.train.model.action_mask import MASK_LOGIT
@@ -302,6 +304,9 @@ class Disco103Learner:
         )
         vf_loss = mean(vf)
         logs["vf_loss"] = vf_loss
+        logs[LEARNER_RESULTS_VF_EXPLAINED_VAR_KEY] = explained_variance(
+            batch[Postprocessing.VALUE_TARGETS], values
+        )
         return loss + config.vf_loss_coeff * vf_loss
 
     # -- the target network and the state ------------------------------------
