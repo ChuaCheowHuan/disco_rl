@@ -51,8 +51,13 @@ class TestEnabledWithEverythingOffChangesNothing:
     def test_every_component_defaults_off(self):
         assert not any(config.DEFAULTS[name] for name in config.COMPONENTS)
 
-    def test_the_learner_class_is_unchanged(self):
-        assert _learner_class(_cfg()) is CDAPPOTorchLearner
+    def test_the_learner_only_gains_the_switched_mixin(self):
+        composed = _learner_class(_cfg())
+        assert composed.__mro__[1] is cda_discorl.EXTENSION.learner_mixin
+        assert composed.__mro__[-len(CDAPPOTorchLearner.__mro__) :] == CDAPPOTorchLearner.__mro__
+
+    def test_no_module_gets_the_module_mixin(self):
+        assert cda_discorl.EXTENSION.module_ids(config.DEFAULTS, ["policy_0", "policy_1"]) == []
 
     def test_the_env_is_unchanged(self):
         env = object()

@@ -12,7 +12,10 @@ import ray
 
 from gym_continuousDoubleAuction.train import extensions
 from gym_continuousDoubleAuction.train.checkpoint import _read_league_state, save_checkpoint
-from gym_continuousDoubleAuction.train.model.moe_learner import CDAPPOTorchLearner
+from gym_continuousDoubleAuction.train.model.moe_learner import (
+    CDAPPOTorchLearner,
+    CDAPPOTorchRLModule,
+)
 from gym_continuousDoubleAuction.train.train import TrainConfig, build_config
 
 import cda_discorl
@@ -51,8 +54,13 @@ class TestEnabledButInert:
         ray.shutdown()
         shutil.rmtree(cls.log_dir, ignore_errors=True)
 
-    def test_the_learner_is_plain_ppo(self):
-        assert type(self.algo.learner_group._learner) is CDAPPOTorchLearner
+    def test_the_learner_runs_plain_ppo(self):
+        assert isinstance(self.algo.learner_group._learner, CDAPPOTorchLearner)
+        for module_id in ("policy_0", "policy_1"):
+            assert not any(k.startswith("discorl") for k in self.result["learners"][module_id])
+
+    def test_the_modules_are_unchanged(self):
+        assert type(self.algo.env_runner.module["policy_0"]) is CDAPPOTorchRLModule
 
     def test_one_iteration_trained_both_modules(self):
         for module_id in ("policy_0", "policy_1"):
