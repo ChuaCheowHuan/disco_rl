@@ -36,7 +36,7 @@ the rules between them.
 |---|---|---|---|
 | Categorical value | `categorical_value` | Two-hot critic over `value_bins` with an h-transform | Built |
 | Target policy | `target_policy` | KL from the policy to an EMA copy of itself | Built |
-| Policy prediction | `policy_prediction` | Auxiliary head predicting the next step's policy | Not built yet |
+| Policy prediction | `policy_prediction` | Auxiliary head predicting the next step's policy | Built |
 | Advantage EMA | `adv_ema` | Normalises advantages by a lifetime EMA of their scale | Built |
 | Env variety | `env_variety` | Randomises non-structural env settings per episode | Not built yet |
 | Disco103 | `disco103` | The frozen discovered rule in place of PPO's loss | Not built yet |
@@ -76,6 +76,20 @@ DiscoRL's agent keeps target weights, an exponential moving average of its own. 
 moves the policy; this limits how far a run of updates drifts from where the policy has recently
 been, which matters when the league keeps changing the opponents. The KL is logged as
 `discorl_target_kl`, and the copy is saved with the Learner's state.
+
+## Policy prediction
+
+DiscoRL's agent has an auxiliary output that predicts, for each action it could take now, the
+policy it will have at the next step, trained toward the actual next-step policy. Nothing acts on
+it; it shapes the shared representation. This market's action is a Dict, so with
+`policy_prediction` on the head is conditioned on the `category` action and predicts the logits of
+every discrete component (category, price, price offset, order slot) at the next step. The loss is
+the sum over those components of KL(next-step policy || prediction), with terminal steps masked
+out, weighted by `policy_prediction_cost` and logged as `discorl_policy_prediction_loss`.
+
+It adds the next observation to the Learner's train batch when the run does not already carry it
+(JEPA runs do). It needs a stateless encoder, so it refuses `encoder_type: lstm`. The head lives
+only on the Learner's copy of a module; env runners do not build it.
 
 ## Advantage EMA
 
