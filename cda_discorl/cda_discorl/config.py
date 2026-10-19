@@ -58,7 +58,7 @@ COMPONENTS = (
 
 #: Components whose code has landed. A switch for any other one is refused
 #: rather than accepted and ignored, which would read as "it made no difference".
-BUILT: frozenset = frozenset({"categorical_value", "adv_ema", "target_policy"})
+BUILT: frozenset = frozenset({"categorical_value", "adv_ema", "target_policy", "policy_prediction"})
 
 #: Components Disco103 supplies itself: its targets already include a
 #: categorical value, a policy target and a policy-prediction output.
@@ -130,6 +130,9 @@ def validate(settings: Dict[str, Any], cfg) -> None:
     _positive(settings, "disco103_reward_scale")
     if settings["disco103_size_head"] not in SIZE_HEAD_MODES:
         _fail(f"disco103_size_head must be one of {list(SIZE_HEAD_MODES)}.")
+
+    if settings["policy_prediction"] and cfg.encoder_type == "lstm":
+        _fail("policy_prediction needs a stateless encoder; encoder_type is lstm.")
 
     env_keys = settings["env_variety_keys"]
     missing = sorted(set(env_keys) - set(cfg.env_config))
