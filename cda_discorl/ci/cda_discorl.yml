@@ -1,0 +1,51 @@
+name: cda_discorl
+
+# Tests the cda_discorl package (the DiscoRL extension for
+# gym-continuousDoubleAuction) against an installed gym-CDA. The upstream
+# disco_rl package is not touched or tested here.
+#
+# Lives in cda_discorl/ci/ until it is copied to .github/workflows/: the
+# session that wrote it could not push workflow files.
+
+on:
+  push:
+    branches: [main]
+    paths: ["cda_discorl/**", ".github/workflows/cda_discorl.yml"]
+  pull_request:
+    paths: ["cda_discorl/**", ".github/workflows/cda_discorl.yml"]
+  workflow_dispatch:
+    inputs:
+      gym_cda_ref:
+        description: gym-continuousDoubleAuction branch, tag or commit to test against
+        required: false
+
+env:
+  # The gym-CDA ref carrying the extension point this package needs.
+  GYM_CDA_REF: ${{ inputs.gym_cda_ref || 'claude/discorl-fresh' }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install gym-CDA (CPU torch) and cda_discorl
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.13.0 --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install "gym_continuousDoubleAuction @ git+https://github.com/ChuaCheowHuan/gym-continuousDoubleAuction@${GYM_CDA_REF}"
+          pip install "./cda_discorl[test]"
+
+      - name: Tests, including one real training iteration
+        working-directory: cda_discorl
+        run: python -m pytest -q
