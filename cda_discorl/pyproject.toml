@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=77.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cda-discorl"
+version = "0.1.0"
+description = "DiscoRL components for gym-continuousDoubleAuction, as an installable training extension."
+readme = "README.md"
+requires-python = ">=3.12"
+license-files = ["../LICENSE"]
+# gym-CDA is not on PyPI: install it first (see README). The range is the
+# extension-point contract this package is tested against.
+dependencies = ["gym_continuousDoubleAuction>=2.0,<3"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[project.entry-points."gym_cda.extensions"]
+discorl = "cda_discorl:EXTENSION"
+
+[tool.setuptools]
+packages = ["cda_discorl"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
