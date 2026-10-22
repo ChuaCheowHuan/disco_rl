@@ -49,3 +49,7 @@ repository = "https://github.com/google-deepmind/disco_rl"
 [tool.setuptools.packages.find]
 where = ["."]  # list of folders that contain the packages (["."] by default)
 include = ["*"]  # package names should match these glob patterns (["*"] by default)
+
+[tool.setuptools.package-data]
+# The Disco103 weights, so a non-editable install has them too.
+"disco_rl.update_rules" = ["weights/*.npz"]
